@@ -1,0 +1,54 @@
+Java 9 StackWalker API microbenchmark
+=====================================
+
+The goal of this microbenchmark is to see how fast the `StackWalker` API introduced in Java9.
+
+= Implementation details
+
+This benchmark is composed of two files.
+`StackTraceBenchmark` measures how long it takes to retrieve the 5 last elements of a stack trace without actually using them.
+It serves as the baseline for the second experiment.
+`FileAndLineNumberBenchmark` measures how long it takes to get the file name and line number of those elements.
+
+All the information contained in this README file are based on JDK 9 build 125.
+
+The implementation of `StackFrameInfo.java` converts a `StackFrame` into a `StackTraceElement` before the file name and line number can be retrieved.
+Each call of `getFileName()`, `getMethodName()` and `getLineNumber()` creates a new `StackTraceElement`.
+Getting the class name, method name and bytecode index do not require such a conversion.
+Therefore, `FileAndLineNumberBenchmark` contains the following methods:
+
+* `exception` gets those information by building a new `Exception` and getting its stack trace
+* `stackwalkerWithFileNameAndLineNumber` gets those information by calling the three methods `getFileName()`, `getMethodName()` and `getLineNumber()`
+* `stackwalkerWithExplicitStackTraceElement` does the same but first converts the `StackFrame` to a `StackTraceElement` and reuses it
+* `stackwalkerWithClassMethodAndBCI` only gets the class name, method name and bytecode index
+* `stackwalkerWithClassAndBCI` only gets the class name and bytecode index
+
+= Results
+
+The `StackWalker` API is faster than the typical way by a 2x factor.
+However, calling `getFileName()`, `getMethodName()` and `getLineNumber()` on `StackFrame()` imply a substantial cost.
+
+[source,bash]
+----
+$ java -jar target/microbenchmarks.jar -f 5 -wi 10 -i 10
+[...]
+# Run complete. Total time: 00:10:24
+
+Benchmark                                                            Mode  Cnt      Score     Error  Units
+StackTraceBenchmark.exception                                        avgt   50  17002,587 ± 355,071  ns/op
+StackTraceBenchmark.stackwalker                                      avgt   50   4456,895 ± 109,627  ns/op
+FileAndLineNumberBenchmark.exception                                 avgt   50  17907,933 ± 336,197  ns/op
+FileAndLineNumberBenchmark.stackwalkerWithFileNameAndLineNumber      avgt   50  11225,741 ± 216,263  ns/op
+FileAndLineNumberBenchmark.stackwalkerWithExplicitStackTraceElement  avgt   50   8989,665 ± 134,605  ns/op
+FileAndLineNumberBenchmark.stackwalkerWithClassMethodAndBCI          avgt   50   6955,292 ± 169,572  ns/op
+FileAndLineNumberBenchmark.stackwalkerWithClassAndBCI                avgt   50   4620,220 ± 115,719  ns/op
+----
+
+= Todo
+
+- Find out if using the class name and BCI allow to uniquely identify a method and line in a file.
+
+= Licence
+
+This project is licenced under the MIT licence.  See the LICENSE file for details.
+
